@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gastos Familia</title>
+  <meta name="theme-color" content="#0f766e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gastos">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <style>
+    :root {
+      --bg: #f4f6f5;
+      --card: #ffffff;
+      --text: #14201d;
+      --muted: #5f6f6b;
+      --border: #d9e0de;
+      --accent: #0f766e;
+      --accent-text: #ffffff;
+      --accent-soft: #e0f2ef;
+      --danger: #b42318;
+      --ok: #157f3b;
+      --ok-soft: #e3f5e9;
+      --err-soft: #fdecea;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1514;
+        --card: #18211f;
+        --text: #e8efed;
+        --muted: #93a39f;
+        --border: #2a3633;
+        --accent: #2bb3a3;
+        --accent-text: #06201c;
+        --accent-soft: #163631;
+        --danger: #f2877d;
+        --ok: #5fd08a;
+        --ok-soft: #12301f;
+        --err-soft: #3a1714;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    }
+    main { max-width: 480px; margin: 0 auto; padding: 16px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    h1 { font-size: 20px; margin: 0; }
+    h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+    .link { background: none; border: 0; color: var(--accent); font: inherit; font-size: 14px; padding: 6px 0; cursor: pointer; }
+    .total { font-size: 14px; color: var(--muted); }
+    .total strong { color: var(--text); font-size: 18px; }
+
+    .centros { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .chip {
+      border: 2px solid var(--border); background: var(--card); color: var(--text);
+      border-radius: 14px; padding: 16px 8px; font: inherit; font-weight: 600; font-size: 17px; cursor: pointer;
+    }
+    .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+
+    label { display: block; font-size: 14px; color: var(--muted); margin: 14px 0 6px; }
+    input {
+      width: 100%; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      border-radius: 12px; padding: 14px; font: inherit; font-size: 17px;
+    }
+    input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+    .monto { font-size: 28px; font-weight: 700; }
+    .btn {
+      width: 100%; border: 0; border-radius: 14px; padding: 16px; margin-top: 18px;
+      background: var(--accent); color: var(--accent-text); font: inherit; font-size: 18px; font-weight: 700; cursor: pointer;
+    }
+    .btn:disabled { opacity: .5; }
+    .msg { border-radius: 12px; padding: 12px; margin-top: 12px; font-size: 15px; }
+    .msg.ok { background: var(--ok-soft); color: var(--ok); }
+    .msg.err { background: var(--err-soft); color: var(--danger); }
+
+    .lista { list-style: none; margin: 0; padding: 0; }
+    .lista li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
+    .lista li:first-child { border-top: 0; }
+    .lista .info { flex: 1; min-width: 0; }
+    .lista .linea1 { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+    .lista .linea2 { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .borrar { border: 1px solid var(--border); background: none; color: var(--danger); border-radius: 10px; width: 40px; height: 40px; font-size: 18px; cursor: pointer; flex: none; }
+    .vacio { color: var(--muted); font-size: 14px; }
+    .personas { display: grid; gap: 10px; margin-top: 8px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <!-- Pantalla de ingreso: PIN + quién soy -->
+  <section id="login" hidden>
+    <header><h1>Gastos Familia</h1></header>
+    <div class="card">
+      <form id="form-pin">
+        <label for="pin">PIN</label>
+        <input id="pin" type="password" inputmode="numeric" autocomplete="off" required>
+        <button class="btn" type="submit">Entrar</button>
+      </form>
+      <div id="elegir-persona" hidden>
+        <label>¿Quién eres?</label>
+        <div class="personas" id="personas"></div>
+      </div>
+      <div id="login-msg" class="msg" hidden></div>
+    </div>
+  </section>
+
+  <!-- Pantalla principal -->
+  <section id="app" hidden>
+    <header>
+      <h1>Gastos Familia</h1>
+      <button class="link" id="cambiar" type="button"></button>
+    </header>
+
+    <form class="card" id="form-gasto" novalidate>
+      <h2>Centro de costo</h2>
+      <div class="centros" id="centros"></div>
+
+      <label for="monto">Monto</label>
+      <input id="monto" class="monto" type="text" inputmode="numeric" placeholder="$0" autocomplete="off">
+
+      <label for="descripcion">Descripción</label>
+      <input id="descripcion" type="text" maxlength="200" placeholder="Ej: pañales, remedios…" autocomplete="off">
+
+      <label for="fecha">Fecha</label>
+      <input id="fecha" type="date">
+
+      <button class="btn" id="guardar" type="submit">Guardar</button>
+      <div id="gasto-msg" class="msg" hidden></div>
+    </form>
+
+    <section class="card">
+      <div class="total">Este mes: <strong id="total-mes">—</strong></div>
+    </section>
+
+    <section class="card">
+      <h2>Últimos gastos</h2>
+      <ul class="lista" id="lista"></ul>
+    </section>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  var API = window.GASTOS_API_URL;
+  var $ = function (id) { return document.getElementById(id); };
+  var clp = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+  var estado = { pin: leer('pin'), persona: leer('persona'), centro: null, centros: [], personas: [] };
+
+  function leer(k) { try { return localStorage.getItem('gastos.' + k) || ''; } catch (e) { return ''; } }
+  function guardar(k, v) { try { v ? localStorage.setItem('gastos.' + k, v) : localStorage.removeItem('gastos.' + k); } catch (e) {} }
+
+  function hoy() {
+    var d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  }
+
+  function mensaje(el, texto, tipo) {
+    el.textContent = texto;
+    el.className = 'msg ' + tipo;
+    el.hidden = !texto;
+  }
+
+  function api(action, datos) {
+    if (!API || API.indexOf('PEGAR_AQUI') === 0) {
+      return Promise.reject(new Error('Falta configurar la URL de Apps Script en config.js'));
+    }
+    var body = Object.assign({ action: action, pin: estado.pin }, datos || {});
+    // text/plain evita el preflight CORS que Apps Script no responde.
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.error || 'Error desconocido');
+        return res;
+      }, function (err) {
+        if (err instanceof SyntaxError) throw new Error('Respuesta inválida del servidor');
+        throw new Error(navigator.onLine === false ? 'Sin conexión a internet' : (err.message || 'No se pudo conectar'));
+      });
+  }
+
+  // ---------- Ingreso ----------
+  function mostrarLogin() {
+    $('app').hidden = true;
+    $('login').hidden = false;
+    $('form-pin').hidden = false;
+    $('elegir-persona').hidden = true;
+    $('login-msg').hidden = true;
+    $('pin').value = '';
+  }
+
+  $('form-pin').addEventListener('submit', function (e) {
+    e.preventDefault();
+    estado.pin = $('pin').value.trim();
+    mensaje($('login-msg'), 'Verificando…', 'ok');
+    api('config').then(function (res) {
+      guardar('pin', estado.pin);
+      estado.centros = res.centros;
+      estado.personas = res.personas;
+      $('login-msg').hidden = true;
+      if (res.personas.indexOf(estado.persona) !== -1) return iniciarApp();
+      elegirPersona();
+    }).catch(function (err) {
+      mensaje($('login-msg'), err.message, 'err');
+    });
+  });
+
+  function elegirPersona() {
+    $('app').hidden = true;
+    $('login').hidden = false;
+    $('form-pin').hidden = true;
+    $('elegir-persona').hidden = false;
+    var cont = $('personas');
+    cont.innerHTML = '';
+    estado.personas.forEach(function (p) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = p;
+      b.addEventListener('click', function () {
+        estado.persona = p;
+        guardar('persona', p);
+        iniciarApp();
+      });
+      cont.appendChild(b);
+    });
+  }
+
+  $('cambiar').addEventListener('click', function () {
+    if (confirm('¿Cambiar de persona? Ahora estás como ' + estado.persona + '.')) {
+      estado.persona = '';
+      guardar('persona', '');
+      elegirPersona();
+    }
+  });
+
+  // ---------- App ----------
+  function iniciarApp() {
+    $('login').hidden = true;
+    $('app').hidden = false;
+    $('cambiar').textContent = estado.persona + ' · cambiar';
+    $('fecha').value = hoy();
+    pintarCentros();
+    cargarLista();
+  }
+
+  function pintarCentros() {
+    var cont = $('centros');
+    cont.innerHTML = '';
+    estado.centros.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = c;
+      b.setAttribute('aria-pressed', String(c === estado.centro));
+      b.addEventListener('click', function () {
+        estado.centro = c;
+        Array.prototype.forEach.call(cont.children, function (x) {
+          x.setAttribute('aria-pressed', String(x.textContent === c));
+        });
+      });
+      cont.appendChild(b);
+    });
+  }
+
+  function montoNumero() {
+    return Number($('monto').value.replace(/\D/g, '')) || 0;
+  }
+
+  $('monto').addEventListener('input', function () {
+    var n = montoNumero();
+    this.value = n ? clp.format(n) : '';
+  });
+
+  $('form-gasto').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var msg = $('gasto-msg');
+    var monto = montoNumero();
+    if (!estado.centro) return mensaje(msg, 'Elige un centro de costo', 'err');
+    if (!monto) return mensaje(msg, 'Ingresa el monto', 'err');
+
+    var boton = $('guardar');
+    boton.disabled = true;
+    boton.textContent = 'Guardando…';
+    api('add', {
+      centro: estado.centro,
+      monto: monto,
+      descripcion: $('descripcion').value.trim(),
+      fecha: $('fecha').value || hoy(),
+      persona: estado.persona
+    }).then(function (res) {
+      mensaje(msg, '✓ Guardado: ' + clp.format(monto) + ' en ' + estado.centro, 'ok');
+      $('monto').value = '';
+      $('descripcion').value = '';
+      $('fecha').value = hoy();
+      estado.centro = null;
+      pintarCentros();
+      pintarLista(res);
+      setTimeout(function () { if (msg.classList.contains('ok')) msg.hidden = true; }, 4000);
+    }).catch(function (err) {
+      mensaje(msg, 'No se guardó: ' + err.message, 'err');
+      if (/PIN/.test(err.message)) cerrarSesion();
+    }).then(function () {
+      boton.disabled = false;
+      boton.textContent = 'Guardar';
+    });
+  });
+
+  function cargarLista() {
+    api('list').then(pintarLista).catch(function (err) {
+      $('lista').innerHTML = '';
+      var li = document.createElement('li');
+      li.className = 'vacio';
+      li.textContent = 'No se pudo cargar: ' + err.message;
+      $('lista').appendChild(li);
+      if (/PIN/.test(err.message)) cerrarSesion();
+    });
+  }
+
+  function fechaCorta(iso) {
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] : iso;
+  }
+
+  function pintarLista(res) {
+    $('total-mes').textContent = clp.format(res.totalMes || 0);
+    var ul = $('lista');
+    ul.innerHTML = '';
+    if (!res.gastos.length) {
+      var vacio = document.createElement('li');
+      vacio.className = 'vacio';
+      vacio.textContent = 'Todavía no hay gastos.';
+      ul.appendChild(vacio);
+      return;
+    }
+    res.gastos.forEach(function (g) {
+      var li = document.createElement('li');
+      var info = document.createElement('div');
+      info.className = 'info';
+      var l1 = document.createElement('div');
+      l1.className = 'linea1';
+      var c = document.createElement('span');
+      c.textContent = g.centro;
+      var m = document.createElement('span');
+      m.textContent = clp.format(g.monto);
+      l1.append(c, m);
+      var l2 = document.createElement('div');
+      l2.className = 'linea2';
+      l2.textContent = fechaCorta(g.fecha) + ' · ' + g.persona + (g.descripcion ? ' · ' + g.descripcion : '');
+      info.append(l1, l2);
+
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'borrar';
+      b.setAttribute('aria-label', 'Borrar gasto');
+      b.textContent = '✕';
+      b.addEventListener('click', function () {
+        if (!confirm('¿Borrar ' + g.centro + ' ' + clp.format(g.monto) + '?')) return;
+        b.disabled = true;
+        api('delete', { id: g.id }).then(pintarLista).catch(function (err) {
+          b.disabled = false;
+          alert('No se pudo borrar: ' + err.message);
+        });
+      });
+      li.append(info, b);
+      ul.appendChild(li);
+    });
+  }
+
+  function cerrarSesion() {
+    estado.pin = '';
+    guardar('pin', '');
+    mostrarLogin();
+  }
+
+  // ---------- Arranque ----------
+  if (!estado.pin) return mostrarLogin();
+  api('config').then(function (res) {
+    estado.centros = res.centros;
+    estado.personas = res.personas;
+    if (res.personas.indexOf(estado.persona) !== -1) iniciarApp();
+    else elegirPersona();
+  }).catch(function (err) {
+    mostrarLogin();
+    mensaje($('login-msg'), err.message, 'err');
+  });
+})();
+</script>
+</body>
+</html>
