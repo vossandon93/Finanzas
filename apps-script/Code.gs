@@ -25,6 +25,15 @@ var ULTIMOS_GASTOS = 20;
 
 function setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    // Proyecto creado en script.google.com (no dentro de una planilla):
+    // se usa la planilla creada antes o se crea una nueva en tu Drive.
+    var props = PropertiesService.getScriptProperties();
+    var id = props.getProperty('SHEET_ID');
+    ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.create('Gastos Familia');
+    props.setProperty('SHEET_ID', ss.getId());
+    Logger.log('Planilla: ' + ss.getUrl());
+  }
   ss.setSpreadsheetTimeZone('America/Santiago');
 
   var gastos = obtenerOCrearHoja_(ss, HOJA_GASTOS);
@@ -104,6 +113,14 @@ function crearResumenes_(ss) {
   anual.setFrozenRows(2);
 }
 
+function libro_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss) return ss;
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  if (!id) throw new Error('Falta la planilla: ejecuta setup() primero');
+  return SpreadsheetApp.openById(id);
+}
+
 function obtenerOCrearHoja_(ss, nombre) {
   return ss.getSheetByName(nombre) || ss.insertSheet(nombre);
 }
@@ -147,7 +164,7 @@ function validarPin_(pin) {
 }
 
 function leerLista_(nombreHoja) {
-  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
+  var hoja = libro_().getSheetByName(nombreHoja);
   if (!hoja || hoja.getLastRow() < 2) return [];
   return hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues()
     .map(function (fila) { return String(fila[0]).trim(); })
@@ -200,7 +217,7 @@ function ultimosGastos_() {
   var ultima = hoja.getLastRow();
   if (ultima < 2) return [];
   var n = Math.min(ULTIMOS_GASTOS, ultima - 1);
-  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  var tz = libro_().getSpreadsheetTimeZone();
   return hoja.getRange(ultima - n + 1, 1, n, COLUMNAS_GASTOS.length).getValues()
     .reverse()
     .map(function (f) {
@@ -219,7 +236,7 @@ function totalMesActual_() {
   var hoja = hojaGastos_();
   var ultima = hoja.getLastRow();
   if (ultima < 2) return 0;
-  var tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  var tz = libro_().getSpreadsheetTimeZone();
   var mesActual = Utilities.formatDate(new Date(), tz, 'yyyy-MM');
   return hoja.getRange(2, 2, ultima - 1, 3).getValues().reduce(function (suma, f) {
     if (f[0] instanceof Date && Utilities.formatDate(f[0], tz, 'yyyy-MM') === mesActual) {
@@ -230,7 +247,7 @@ function totalMesActual_() {
 }
 
 function hojaGastos_() {
-  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_GASTOS);
+  var hoja = libro_().getSheetByName(HOJA_GASTOS);
   if (!hoja) throw new Error('Falta la hoja Gastos: ejecuta setup() primero');
   return hoja;
 }
