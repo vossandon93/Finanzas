@@ -100,6 +100,12 @@
     .borrar { border: 1px solid var(--border); background: none; color: var(--danger); border-radius: 10px; width: 40px; height: 40px; font-size: 18px; cursor: pointer; flex: none; }
     .vacio { color: var(--muted); font-size: 14px; }
     .personas { display: grid; gap: 10px; margin-top: 8px; }
+    .fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .btn-sec {
+      border: 1px solid var(--accent); background: none; color: var(--accent); border-radius: 10px;
+      padding: 10px 14px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; flex: none;
+    }
+    .centrado { text-align: center; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -111,7 +117,7 @@
     <div class="card">
       <form id="form-pin">
         <label for="pin">PIN</label>
-        <input id="pin" type="password" inputmode="numeric" autocomplete="off" required>
+        <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" required>
         <button class="btn" type="submit">Entrar</button>
       </form>
       <div id="elegir-persona" hidden>
@@ -119,6 +125,16 @@
         <div class="personas" id="personas"></div>
       </div>
       <div id="login-msg" class="msg" hidden></div>
+    </div>
+  </section>
+
+  <!-- Pantalla de bloqueo con Face ID -->
+  <section id="bloqueo" hidden>
+    <header><h1>Gastos Familia</h1></header>
+    <div class="card centrado">
+      <button class="btn" id="desbloquear" type="button">Abrir con Face ID</button>
+      <button class="link" id="usar-pin" type="button">Usar PIN</button>
+      <div id="bloqueo-msg" class="msg" hidden></div>
     </div>
   </section>
 
@@ -153,6 +169,14 @@
     <section class="card">
       <h2>Últimos gastos</h2>
       <ul class="lista" id="lista"></ul>
+    </section>
+
+    <section class="card fila" id="faceid-card" hidden>
+      <div>
+        <div>Abrir con Face ID</div>
+        <div class="total" id="faceid-estado"></div>
+      </div>
+      <button class="btn-sec" id="faceid-toggle" type="button"></button>
     </section>
   </section>
 </main>
@@ -207,21 +231,32 @@
     $('pin').value = '';
   }
 
+  // El PIN es de 4 dígitos: al completar el cuarto se entra solo, sin tocar "Entrar".
+  $('pin').addEventListener('input', function () {
+    if (/^\d{4}$/.test(this.value)) $('form-pin').requestSubmit();
+  });
+
   $('form-pin').addEventListener('submit', function (e) {
     e.preventDefault();
     estado.pin = $('pin').value.trim();
     mensaje($('login-msg'), 'Verificando…', 'ok');
     api('config').then(function (res) {
       guardar('pin', estado.pin);
-      estado.centros = res.centros;
-      estado.personas = res.personas;
+      usarConfig(res);
       $('login-msg').hidden = true;
       if (res.personas.indexOf(estado.persona) !== -1) return iniciarApp();
       elegirPersona();
     }).catch(function (err) {
+      $('pin').value = '';
       mensaje($('login-msg'), err.message, 'err');
     });
   });
+
+  function usarConfig(res) {
+    estado.centros = res.centros;
+    estado.personas = res.personas;
+    guardar('config', JSON.stringify({ centros: res.centros, personas: res.personas }));
+  }
 
   function elegirPersona() {
     $('app').hidden = true;
@@ -259,11 +294,13 @@
     $('cambiar').textContent = estado.persona + ' · cambiar';
     $('fecha').value = hoy();
     pintarCentros();
+    pintarFaceId();
     cargarLista();
   }
 
   function pintarCentros() {
     var sel = $('centro');
+    var elegido = sel.value;
     sel.innerHTML = '';
     var vacio = document.createElement('option');
     vacio.value = '';
@@ -277,6 +314,7 @@
       o.textContent = c;
       sel.appendChild(o);
     });
+    if (elegido && estado.centros.indexOf(elegido) !== -1) sel.value = elegido;
   }
 
   function montoNumero() {
@@ -310,7 +348,7 @@
       $('monto').value = '';
       $('descripcion').value = '';
       $('fecha').value = hoy();
-      pintarCentros();
+      $('centro').selectedIndex = 0;
       pintarLista(res);
       setTimeout(function () { if (msg.classList.contains('ok')) msg.hidden = true; }, 4000);
     }).catch(function (err) {
@@ -386,20 +424,122 @@
   function cerrarSesion() {
     estado.pin = '';
     guardar('pin', '');
+    $('bloqueo').hidden = true;
     mostrarLogin();
   }
 
-  // ---------- Arranque ----------
-  if (!estado.pin) return mostrarLogin();
-  api('config').then(function (res) {
-    estado.centros = res.centros;
-    estado.personas = res.personas;
-    if (res.personas.indexOf(estado.persona) !== -1) iniciarApp();
-    else elegirPersona();
-  }).catch(function (err) {
-    mostrarLogin();
-    mensaje($('login-msg'), err.message, 'err');
+  // ---------- Face ID (passkey local del celular) ----------
+  // Es un candado del dispositivo: el PIN sigue guardado en el celular y Face ID
+  // solo decide si se muestra la app. No se envía nada biométrico a ningún lado.
+  function azar(n) { return crypto.getRandomValues(new Uint8Array(n)); }
+  function aBase64(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))); }
+  function deBase64(txt) { return Uint8Array.from(atob(txt), function (c) { return c.charCodeAt(0); }); }
+
+  function faceIdDisponible() {
+    if (!window.PublicKeyCredential || !PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+      return Promise.resolve(false);
+    }
+    return PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(function () { return false; });
+  }
+
+  function activarFaceId() {
+    return navigator.credentials.create({ publicKey: {
+      challenge: azar(32),
+      rp: { name: 'Gastos Familia' },
+      user: { id: azar(16), name: estado.persona || 'Gastos', displayName: estado.persona || 'Gastos' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+      timeout: 60000
+    } }).then(function (cred) {
+      guardar('faceid', aBase64(cred.rawId));
+    });
+  }
+
+  function verificarFaceId() {
+    return navigator.credentials.get({ publicKey: {
+      challenge: azar(32),
+      allowCredentials: [{ type: 'public-key', id: deBase64(leer('faceid')), transports: ['internal'] }],
+      userVerification: 'required',
+      timeout: 60000
+    } });
+  }
+
+  function pintarFaceId() {
+    faceIdDisponible().then(function (ok) {
+      $('faceid-card').hidden = !ok;
+      var activo = !!leer('faceid');
+      $('faceid-estado').textContent = activo ? 'Activado en este celular' : 'Desactivado';
+      $('faceid-toggle').textContent = activo ? 'Desactivar' : 'Activar';
+    });
+  }
+
+  $('faceid-toggle').addEventListener('click', function () {
+    if (leer('faceid')) {
+      guardar('faceid', '');
+      return pintarFaceId();
+    }
+    activarFaceId().then(pintarFaceId).catch(function (err) {
+      if (err && err.name !== 'NotAllowedError') alert('No se pudo activar Face ID: ' + err.message);
+    });
   });
+
+  function mostrarBloqueo() {
+    $('login').hidden = true;
+    $('app').hidden = true;
+    $('bloqueo').hidden = false;
+    $('bloqueo-msg').hidden = true;
+  }
+
+  function desbloquear(automatico) {
+    verificarFaceId().then(function () {
+      $('bloqueo').hidden = true;
+      entrar();
+    }).catch(function (err) {
+      // Safari puede exigir un toque antes de pedir Face ID: en ese caso queda el botón.
+      if (!automatico) mensaje($('bloqueo-msg'), 'No se pudo verificar. Intenta de nuevo o usa el PIN.', 'err');
+    });
+  }
+
+  $('desbloquear').addEventListener('click', function () { desbloquear(false); });
+  $('usar-pin').addEventListener('click', cerrarSesion);
+
+  // ---------- Arranque ----------
+  // Con PIN guardado se abre al tiro con la última configuración conocida y se
+  // actualiza por detrás. Solo un PIN rechazado vuelve a la pantalla del PIN.
+  function entrar() {
+    var guardada = null;
+    try { guardada = JSON.parse(leer('config') || 'null'); } catch (e) {}
+    if (guardada) {
+      estado.centros = guardada.centros;
+      estado.personas = guardada.personas;
+      if (estado.personas.indexOf(estado.persona) !== -1) iniciarApp();
+      else elegirPersona();
+    }
+    api('config').then(function (res) {
+      usarConfig(res);
+      if (!guardada) {
+        if (res.personas.indexOf(estado.persona) !== -1) iniciarApp();
+        else elegirPersona();
+      } else if (!$('app').hidden) {
+        pintarCentros();
+      }
+    }).catch(function (err) {
+      if (/PIN/.test(err.message)) {
+        cerrarSesion();
+        mensaje($('login-msg'), err.message, 'err');
+      } else if (!guardada) {
+        mostrarLogin();
+        mensaje($('login-msg'), err.message, 'err');
+      }
+    });
+  }
+
+  if (!estado.pin) return mostrarLogin();
+  if (leer('faceid')) {
+    mostrarBloqueo();
+    return desbloquear(true);
+  }
+  entrar();
 })();
 </script>
 </body>
