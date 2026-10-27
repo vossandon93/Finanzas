@@ -146,6 +146,8 @@ function doPost(e) {
       case 'add':
         agregarGasto_(body);
         return json_({ ok: true, gastos: ultimosGastos_(), totalMes: totalMesActual_() });
+      case 'addCentro':
+        return json_({ ok: true, centros: agregarCentro_(body.nombre), personas: leerLista_(HOJA_PERSONAS) });
       case 'delete':
         borrarGasto_(body.id);
         return json_({ ok: true, gastos: ultimosGastos_(), totalMes: totalMesActual_() });
@@ -169,6 +171,21 @@ function leerLista_(nombreHoja) {
   return hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues()
     .map(function (fila) { return String(fila[0]).trim(); })
     .filter(function (v) { return v; });
+}
+
+function agregarCentro_(nombre) {
+  nombre = String(nombre || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (!nombre) throw new Error('Escribe un nombre para el centro de costo');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var existentes = leerLista_(HOJA_CENTROS);
+    var repetido = existentes.some(function (c) { return c.toLowerCase() === nombre.toLowerCase(); });
+    if (!repetido) libro_().getSheetByName(HOJA_CENTROS).appendRow([nombre]);
+  } finally {
+    lock.releaseLock();
+  }
+  return leerLista_(HOJA_CENTROS);
 }
 
 function agregarGasto_(body) {

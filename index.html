@@ -314,8 +314,37 @@
       o.textContent = c;
       sel.appendChild(o);
     });
+    var nuevo = document.createElement('option');
+    nuevo.value = AGREGAR;
+    nuevo.textContent = '+ Agregar centro de costo…';
+    sel.appendChild(nuevo);
     if (elegido && estado.centros.indexOf(elegido) !== -1) sel.value = elegido;
   }
+
+  var AGREGAR = '__agregar__';
+  var centroAnterior = '';
+
+  $('centro').addEventListener('focus', function () { centroAnterior = this.value; });
+  $('centro').addEventListener('change', function () {
+    var sel = this;
+    if (sel.value !== AGREGAR) return;
+    var volver = function () { sel.value = centroAnterior; if (!sel.value) sel.selectedIndex = 0; };
+    var nombre = (prompt('Nombre del nuevo centro de costo:') || '').trim();
+    if (!nombre) return volver();
+    var existente = estado.centros.filter(function (c) { return c.toLowerCase() === nombre.toLowerCase(); })[0];
+    if (existente) { sel.value = existente; return; }
+    sel.disabled = true;
+    api('addCentro', { nombre: nombre }).then(function (res) {
+      usarConfig(res);
+      pintarCentros();
+      var creado = res.centros.filter(function (c) { return c.toLowerCase() === nombre.toLowerCase(); })[0];
+      if (creado) sel.value = creado;
+      mensaje($('gasto-msg'), '✓ Centro de costo agregado: ' + (creado || nombre), 'ok');
+    }).catch(function (err) {
+      volver();
+      mensaje($('gasto-msg'), 'No se pudo agregar: ' + err.message, 'err');
+    }).then(function () { sel.disabled = false; });
+  });
 
   function montoNumero() {
     return Number($('monto').value.replace(/\D/g, '')) || 0;
@@ -331,7 +360,7 @@
     var msg = $('gasto-msg');
     var monto = montoNumero();
     var centro = $('centro').value;
-    if (!centro) return mensaje(msg, 'Elige un centro de costo', 'err');
+    if (!centro || centro === AGREGAR) return mensaje(msg, 'Elige un centro de costo', 'err');
     if (!monto) return mensaje(msg, 'Ingresa el monto', 'err');
 
     var boton = $('guardar');
