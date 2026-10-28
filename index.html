@@ -25,6 +25,8 @@
       --ok: #157f3b;
       --ok-soft: #e3f5e9;
       --err-soft: #fdecea;
+      /* Colores de los centros en los gráficos (paleta validada para daltonismo). */
+      --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s-otros: #a3aaa8;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -40,6 +42,7 @@
         --ok: #5fd08a;
         --ok-soft: #12301f;
         --err-soft: #3a1714;
+        --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s-otros: #5d6966;
       }
     }
     * { box-sizing: border-box; }
@@ -106,6 +109,86 @@
       padding: 10px 14px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; flex: none;
     }
     .centrado { text-align: center; }
+
+    /* Burbuja de pestañas */
+    .tabs {
+      position: sticky; top: calc(env(safe-area-inset-top) + 8px); z-index: 5;
+      display: flex; gap: 4px; padding: 4px; margin: 0 0 16px;
+      background: color-mix(in srgb, var(--card) 85%, transparent);
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 999px; box-shadow: 0 4px 16px rgba(0,0,0,.08);
+    }
+    .tabs button {
+      flex: 1; border: 0; background: none; color: var(--text); font: inherit; font-size: 16px; font-weight: 600;
+      padding: 10px 6px; border-radius: 999px; cursor: pointer; transition: background .15s, color .15s;
+    }
+    .tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+
+    /* Calendario propio: un toque en el día y listo */
+    .campo-fecha {
+      display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 52px;
+      border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      border-radius: 12px; padding: 14px; font: inherit; font-size: 17px; text-align: left; cursor: pointer;
+    }
+    .campo-fecha::after { content: "📅"; }
+    .atajos { display: flex; gap: 8px; margin-top: 8px; }
+    .atajos button {
+      border: 1px solid var(--border); background: none; color: var(--text); border-radius: 999px;
+      padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer;
+    }
+    .atajos button.activo { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+    .cal { margin-top: 8px; border: 1px solid var(--border); border-radius: 14px; padding: 10px; background: var(--bg); }
+    .cal-top { display: flex; align-items: center; justify-content: space-between; font-weight: 700; margin-bottom: 6px; text-transform: capitalize; }
+    .cal-top button, .periodo button.flecha {
+      border: 0; background: none; color: var(--accent); font-size: 22px; width: 44px; height: 40px; cursor: pointer; border-radius: 10px;
+    }
+    .cal-top button:disabled, .periodo button.flecha:disabled { color: var(--border); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+    .cal-grid .dow { font-size: 12px; color: var(--muted); padding: 4px 0; }
+    .cal-grid button {
+      border: 0; background: none; color: var(--text); font: inherit; font-size: 16px; height: 40px; border-radius: 999px; cursor: pointer;
+    }
+    .cal-grid button.hoy { color: var(--accent); font-weight: 700; }
+    .cal-grid button.sel { background: var(--accent); color: var(--accent-text); font-weight: 700; }
+    .cal-grid button:disabled { color: var(--border); }
+
+    /* Resumen */
+    .periodo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .periodo .nombre { font-weight: 700; font-size: 18px; text-transform: capitalize; text-align: center; flex: 1; }
+    .seg { display: flex; background: var(--bg); border-radius: 999px; padding: 3px; margin-bottom: 12px; }
+    .seg button { flex: 1; border: 0; background: none; color: var(--muted); font: inherit; font-size: 15px; font-weight: 600; padding: 8px; border-radius: 999px; cursor: pointer; }
+    .seg button[aria-pressed="true"] { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+    .dona { display: block; width: 100%; max-width: 260px; margin: 8px auto 0; }
+    .dona circle.seg-dona { cursor: pointer; transition: stroke-width .15s, opacity .15s; }
+    .dona text { fill: var(--text); text-anchor: middle; }
+    .leyenda { list-style: none; margin: 0; padding: 0; }
+    .leyenda li { padding: 10px 0; border-top: 1px solid var(--border); cursor: pointer; }
+    .leyenda li:first-child { border-top: 0; }
+    .leyenda li.apagado { opacity: .45; }
+    .leyenda .l1 { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+    .leyenda .punto { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+    .leyenda .nom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .leyenda .pct { color: var(--muted); font-weight: 400; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .leyenda .barra { height: 6px; border-radius: 3px; background: var(--bg); margin: 8px 0 0 22px; overflow: hidden; }
+    .leyenda .barra i { display: block; height: 100%; border-radius: 3px; }
+
+    /* Meses */
+    .barras { display: flex; align-items: flex-end; gap: 4px; height: 180px; margin-top: 8px; }
+    .barras button {
+      flex: 1; height: 100%; border: 0; background: none; padding: 0; cursor: pointer;
+      display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch;
+    }
+    .barras i { display: block; background: var(--accent); opacity: .45; border-radius: 4px 4px 0 0; min-height: 2px; }
+    .barras button.sel i { opacity: 1; }
+    .barras-eje { display: flex; gap: 4px; border-top: 1px solid var(--border); padding-top: 4px; }
+    .barras-eje span { flex: 1; text-align: center; font-size: 11px; color: var(--muted); text-transform: capitalize; }
+    .barras-eje span.sel { color: var(--text); font-weight: 700; }
+    .grande { font-size: 30px; font-weight: 800; margin: 2px 0; }
+    .datos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dato { background: var(--bg); border-radius: 12px; padding: 12px; }
+    .dato .t { font-size: 13px; color: var(--muted); }
+    .dato .v { font-size: 18px; font-weight: 700; margin-top: 2px; }
+    .dato .s { font-size: 13px; color: var(--muted); }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -145,6 +228,13 @@
       <button class="link" id="cambiar" type="button"></button>
     </header>
 
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" data-pag="anotar" aria-selected="true">Anotar</button>
+      <button type="button" role="tab" data-pag="resumen" aria-selected="false">Por centro</button>
+      <button type="button" role="tab" data-pag="meses" aria-selected="false">Meses</button>
+    </nav>
+
+    <div id="pag-anotar">
     <form class="card" id="form-gasto" novalidate>
       <label for="centro">Centro de costo</label>
       <select id="centro" required></select>
@@ -156,7 +246,13 @@
       <input id="descripcion" type="text" maxlength="200" placeholder="Ej: pañales, remedios…" autocomplete="off">
 
       <label for="fecha">Fecha</label>
-      <input id="fecha" type="date">
+      <button class="campo-fecha" id="fecha" type="button" aria-expanded="false"></button>
+      <div class="atajos">
+        <button type="button" data-dias="0">Hoy</button>
+        <button type="button" data-dias="1">Ayer</button>
+        <button type="button" data-dias="2">Anteayer</button>
+      </div>
+      <div class="cal" id="cal" hidden></div>
 
       <button class="btn" id="guardar" type="submit">Guardar</button>
       <div id="gasto-msg" class="msg" hidden></div>
@@ -178,6 +274,46 @@
       </div>
       <button class="btn-sec" id="faceid-toggle" type="button"></button>
     </section>
+    </div>
+
+    <!-- Gastos por centro de costo -->
+    <div id="pag-resumen" hidden>
+      <section class="card">
+        <div class="seg">
+          <button type="button" data-modo="mes" aria-pressed="true">Mes</button>
+          <button type="button" data-modo="anio" aria-pressed="false">Año</button>
+        </div>
+        <div class="periodo">
+          <button class="flecha" type="button" id="per-ant" aria-label="Periodo anterior">‹</button>
+          <div class="nombre" id="per-nombre"></div>
+          <button class="flecha" type="button" id="per-sig" aria-label="Periodo siguiente">›</button>
+        </div>
+        <svg class="dona" id="dona" viewBox="0 0 200 200" role="img"></svg>
+      </section>
+      <section class="card">
+        <h2>Centros de costo</h2>
+        <ul class="leyenda" id="leyenda"></ul>
+      </section>
+    </div>
+
+    <!-- Evolución por mes -->
+    <div id="pag-meses" hidden>
+      <section class="card">
+        <h2>Últimos 12 meses</h2>
+        <div class="total" id="mes-nombre"></div>
+        <div class="grande" id="mes-total">—</div>
+        <div class="total" id="mes-comp"></div>
+        <div class="barras" id="barras"></div>
+        <div class="barras-eje" id="barras-eje"></div>
+      </section>
+      <section class="card">
+        <div class="datos" id="datos"></div>
+      </section>
+      <section class="card">
+        <h2 id="quien-titulo">Quién anotó</h2>
+        <ul class="leyenda" id="quien"></ul>
+      </section>
+    </div>
   </section>
 </main>
 
@@ -187,16 +323,22 @@
   var API = window.GASTOS_API_URL;
   var $ = function (id) { return document.getElementById(id); };
   var clp = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
-  var estado = { pin: leer('pin'), persona: leer('persona'), centros: [], personas: [] };
+  var estado = { pin: leer('pin'), persona: leer('persona'), centros: [], personas: [], fecha: '', filas: null };
 
   function leer(k) { try { return localStorage.getItem('gastos.' + k) || ''; } catch (e) { return ''; } }
   function guardar(k, v) { try { v ? localStorage.setItem('gastos.' + k, v) : localStorage.removeItem('gastos.' + k); } catch (e) {} }
 
-  function hoy() {
-    var d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 10);
+  function isoDe(d) {
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
   }
+  function fechaDe(iso) {
+    var p = iso.split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2] || 1));
+  }
+  function hoy() { return isoDe(new Date()); }
+  function haceDias(n) { var d = new Date(); d.setDate(d.getDate() - n); return isoDe(d); }
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
   function mensaje(el, texto, tipo) {
     el.textContent = texto;
@@ -292,7 +434,7 @@
     $('login').hidden = true;
     $('app').hidden = false;
     $('cambiar').textContent = estado.persona + ' · cambiar';
-    $('fecha').value = hoy();
+    ponerFecha(hoy());
     pintarCentros();
     pintarFaceId();
     cargarLista();
@@ -376,14 +518,15 @@
       centro: centro,
       monto: monto,
       descripcion: $('descripcion').value.trim(),
-      fecha: $('fecha').value || hoy(),
+      fecha: estado.fecha || hoy(),
       persona: estado.persona
     }).then(function (res) {
       mensaje(msg, '✓ Guardado: ' + clp.format(monto) + ' en ' + centro, 'ok');
       $('monto').value = '';
       $('descripcion').value = '';
-      $('fecha').value = hoy();
+      ponerFecha(hoy());
       $('centro').selectedIndex = 0;
+      estado.filas = null;
       pintarLista(res);
       setTimeout(function () { if (msg.classList.contains('ok')) msg.hidden = true; }, 4000);
     }).catch(function (err) {
@@ -422,7 +565,11 @@
       ul.appendChild(vacio);
       return;
     }
-    res.gastos.forEach(function (g) {
+    // Ordenados por fecha del gasto (más reciente arriba), sin importar el orden en que se anotaron.
+    var gastos = res.gastos.map(function (g, i) { return { g: g, i: i }; }).sort(function (a, b) {
+      return a.g.fecha < b.g.fecha ? 1 : a.g.fecha > b.g.fecha ? -1 : a.i - b.i;
+    }).map(function (x) { return x.g; });
+    gastos.forEach(function (g) {
       var li = document.createElement('li');
       var info = document.createElement('div');
       info.className = 'info';
@@ -446,12 +593,367 @@
       b.addEventListener('click', function () {
         if (!confirm('¿Borrar ' + g.centro + ' ' + clp.format(g.monto) + '?')) return;
         b.disabled = true;
-        api('delete', { id: g.id }).then(pintarLista).catch(function (err) {
+        api('delete', { id: g.id }).then(function (res) { estado.filas = null; pintarLista(res); }).catch(function (err) {
           b.disabled = false;
           alert('No se pudo borrar: ' + err.message);
         });
       });
       li.append(info, b);
+      ul.appendChild(li);
+    });
+  }
+
+  // ---------- Fecha: calendario propio, un toque y se cierra ----------
+  var calMes = null;
+
+  function ponerFecha(iso) {
+    estado.fecha = iso;
+    var d = fechaDe(iso);
+    var texto = d.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+    var dias = Math.round((fechaDe(hoy()) - d) / 864e5);
+    var prefijo = dias === 0 ? 'Hoy · ' : dias === 1 ? 'Ayer · ' : '';
+    if (d.getFullYear() !== new Date().getFullYear()) texto += ' ' + d.getFullYear();
+    $('fecha').textContent = prefijo + texto;
+    document.querySelectorAll('.atajos button').forEach(function (b) {
+      b.classList.toggle('activo', haceDias(Number(b.dataset.dias)) === iso);
+    });
+  }
+
+  function cerrarCal() { $('cal').hidden = true; $('fecha').setAttribute('aria-expanded', 'false'); }
+
+  function pintarCal() {
+    var cal = $('cal');
+    cal.innerHTML = '';
+    var hoyD = fechaDe(hoy());
+    var esteMes = new Date(hoyD.getFullYear(), hoyD.getMonth(), 1);
+    var top = document.createElement('div');
+    top.className = 'cal-top';
+    var ant = document.createElement('button');
+    ant.type = 'button'; ant.textContent = '‹'; ant.setAttribute('aria-label', 'Mes anterior');
+    ant.onclick = function () { calMes = new Date(calMes.getFullYear(), calMes.getMonth() - 1, 1); pintarCal(); };
+    var sig = document.createElement('button');
+    sig.type = 'button'; sig.textContent = '›'; sig.setAttribute('aria-label', 'Mes siguiente');
+    sig.disabled = calMes >= esteMes;
+    sig.onclick = function () { calMes = new Date(calMes.getFullYear(), calMes.getMonth() + 1, 1); pintarCal(); };
+    var nom = document.createElement('span');
+    nom.textContent = MESES[calMes.getMonth()] + ' ' + calMes.getFullYear();
+    top.append(ant, nom, sig);
+
+    var grid = document.createElement('div');
+    grid.className = 'cal-grid';
+    ['L', 'M', 'M', 'J', 'V', 'S', 'D'].forEach(function (d) {
+      var e = document.createElement('div'); e.className = 'dow'; e.textContent = d; grid.appendChild(e);
+    });
+    var hueco = (calMes.getDay() + 6) % 7;
+    for (var i = 0; i < hueco; i++) grid.appendChild(document.createElement('div'));
+    var diasMes = new Date(calMes.getFullYear(), calMes.getMonth() + 1, 0).getDate();
+    for (var dia = 1; dia <= diasMes; dia++) {
+      var d = new Date(calMes.getFullYear(), calMes.getMonth(), dia);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = dia;
+      var iso = isoDe(d);
+      if (iso === hoy()) b.classList.add('hoy');
+      if (iso === estado.fecha) b.classList.add('sel');
+      b.disabled = d > hoyD;
+      b.onclick = (function (iso) { return function () { ponerFecha(iso); cerrarCal(); }; })(iso);
+      grid.appendChild(b);
+    }
+    cal.append(top, grid);
+  }
+
+  $('fecha').addEventListener('click', function () {
+    if (!$('cal').hidden) return cerrarCal();
+    var d = fechaDe(estado.fecha || hoy());
+    calMes = new Date(d.getFullYear(), d.getMonth(), 1);
+    pintarCal();
+    $('cal').hidden = false;
+    this.setAttribute('aria-expanded', 'true');
+  });
+  document.querySelectorAll('.atajos button').forEach(function (b) {
+    b.addEventListener('click', function () { ponerFecha(haceDias(Number(b.dataset.dias))); cerrarCal(); });
+  });
+
+  // ---------- Pestañas ----------
+  var pagina = 'anotar';
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () { irA(b.dataset.pag); });
+  });
+
+  function irA(p) {
+    pagina = p;
+    document.querySelectorAll('.tabs button').forEach(function (b) {
+      b.setAttribute('aria-selected', String(b.dataset.pag === p));
+    });
+    ['anotar', 'resumen', 'meses'].forEach(function (n) { $('pag-' + n).hidden = n !== p; });
+    window.scrollTo(0, 0);
+    if (p !== 'anotar') cargarResumen();
+  }
+
+  // ---------- Datos para los gráficos ----------
+  // filas: [{ mes: 'yyyy-MM', centro, persona, total }] agrupadas por el script.
+  function cargarResumen() {
+    if (estado.filas) return pintarPagina();
+    mostrarCargando();
+    api('resumen').then(function (res) {
+      estado.filas = res.filas;
+      pintarPagina();
+    }).catch(function (err) {
+      var texto = /Acción desconocida/.test(err.message)
+        ? 'Para ver los gráficos falta actualizar el script de Google: pega el Code.gs nuevo y publica una "Nueva versión".'
+        : 'No se pudo cargar: ' + err.message;
+      mostrarCargando(texto);
+      if (/PIN/.test(err.message)) cerrarSesion();
+    });
+  }
+
+  function mostrarCargando(error) {
+    var texto = error || 'Cargando…';
+    $('dona').innerHTML = '';
+    $('per-nombre').textContent = '';
+    $('leyenda').innerHTML = '<li class="vacio"></li>';
+    $('leyenda').firstChild.textContent = texto;
+    $('barras').innerHTML = ''; $('barras-eje').innerHTML = ''; $('datos').innerHTML = '';
+    $('mes-total').textContent = '—'; $('mes-nombre').textContent = ''; $('mes-comp').textContent = texto;
+    $('quien').innerHTML = '';
+  }
+
+  function pintarPagina() {
+    if (pagina === 'resumen') pintarResumen();
+    if (pagina === 'meses') pintarMeses();
+  }
+
+  function sumar(filtro, clave) {
+    var r = {};
+    estado.filas.forEach(function (f) { if (filtro(f)) r[f[clave]] = (r[f[clave]] || 0) + f.total; });
+    return r;
+  }
+
+  // El color sigue al centro, no a su posición del mes: los 5 centros con más gasto
+  // histórico tienen color propio y el resto se agrupa en "Otros" (gris).
+  function coloresCentros() {
+    var hist = sumar(function () { return true; }, 'centro');
+    var orden = Object.keys(hist).sort(function (a, b) { return hist[b] - hist[a] || a.localeCompare(b, 'es'); });
+    var col = {};
+    orden.forEach(function (c, i) { col[c] = i < 5 ? 'var(--s' + (i + 1) + ')' : ''; });
+    return col;
+  }
+
+  // ---------- Por centro: dona + lista ----------
+  var vista = { modo: 'mes', periodo: '', foco: '' };
+
+  document.querySelectorAll('.seg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      vista.modo = b.dataset.modo;
+      vista.periodo = '';
+      vista.foco = '';
+      document.querySelectorAll('.seg button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      pintarResumen();
+    });
+  });
+  $('per-ant').addEventListener('click', function () { moverPeriodo(-1); });
+  $('per-sig').addEventListener('click', function () { moverPeriodo(1); });
+
+  function periodoActual() { return vista.modo === 'mes' ? hoy().slice(0, 7) : hoy().slice(0, 4); }
+
+  function moverPeriodo(n) {
+    var p = vista.periodo;
+    if (vista.modo === 'anio') vista.periodo = String(Number(p) + n);
+    else {
+      var d = fechaDe(p + '-01');
+      vista.periodo = isoDe(new Date(d.getFullYear(), d.getMonth() + n, 1)).slice(0, 7);
+    }
+    vista.foco = '';
+    pintarResumen();
+  }
+
+  function nombrePeriodo(p) {
+    return p.length === 4 ? 'Año ' + p : MESES[Number(p.slice(5, 7)) - 1] + ' ' + p.slice(0, 4);
+  }
+
+  function pintarResumen() {
+    if (!estado.filas) return;
+    if (!vista.periodo) vista.periodo = periodoActual();
+    var p = vista.periodo;
+    var primero = estado.filas.reduce(function (m, f) { return f.mes < m ? f.mes : m; }, periodoActual() + '-12');
+    $('per-nombre').textContent = nombrePeriodo(p);
+    $('per-sig').disabled = p >= periodoActual();
+    $('per-ant').disabled = p <= primero.slice(0, p.length);
+
+    var totales = sumar(function (f) { return f.mes.slice(0, p.length) === p; }, 'centro');
+    var colores = coloresCentros();
+    var total = 0;
+    Object.keys(totales).forEach(function (c) { total += totales[c]; });
+    var centros = Object.keys(totales).sort(function (a, b) { return totales[b] - totales[a]; });
+
+    // Segmentos de la dona: centros con color propio + "Otros".
+    var segs = [];
+    var otros = 0;
+    centros.forEach(function (c) {
+      if (colores[c]) segs.push({ nombre: c, monto: totales[c], color: colores[c] });
+      else otros += totales[c];
+    });
+    if (otros) segs.push({ nombre: 'Otros', monto: otros, color: 'var(--s-otros)' });
+    pintarDona(segs, total);
+
+    var ul = $('leyenda');
+    ul.innerHTML = '';
+    if (!total) {
+      ul.innerHTML = '<li class="vacio">Sin gastos en este periodo.</li>';
+      return;
+    }
+    var max = totales[centros[0]];
+    centros.forEach(function (c) {
+      var li = document.createElement('li');
+      var color = colores[c] || 'var(--s-otros)';
+      var foco = colores[c] ? c : 'Otros';
+      if (vista.foco && vista.foco !== foco) li.classList.add('apagado');
+      var l1 = document.createElement('div'); l1.className = 'l1';
+      var punto = document.createElement('span'); punto.className = 'punto'; punto.style.background = color;
+      var nom = document.createElement('span'); nom.className = 'nom'; nom.textContent = c;
+      var pct = document.createElement('span'); pct.className = 'pct'; pct.textContent = Math.round(totales[c] / total * 100) + '%';
+      var m = document.createElement('span'); m.textContent = clp.format(totales[c]);
+      l1.append(punto, nom, pct, m);
+      var barra = document.createElement('div'); barra.className = 'barra';
+      var i = document.createElement('i'); i.style.width = (totales[c] / max * 100) + '%'; i.style.background = color;
+      barra.appendChild(i);
+      li.append(l1, barra);
+      li.addEventListener('click', function () { vista.foco = vista.foco === foco ? '' : foco; pintarResumen(); });
+      ul.appendChild(li);
+    });
+  }
+
+  function svg(tag, attrs) {
+    var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    return e;
+  }
+
+  function pintarDona(segs, total) {
+    var el = $('dona');
+    el.innerHTML = '';
+    var R = 80, C = 2 * Math.PI * R, GAP = segs.length > 1 ? 2 : 0;
+    el.appendChild(svg('circle', { cx: 100, cy: 100, r: R, fill: 'none', stroke: 'var(--border)', 'stroke-width': 26, opacity: total ? 0 : 1 }));
+    var inicio = 0;
+    segs.forEach(function (s) {
+      var largo = s.monto / total * C;
+      var activo = !vista.foco || vista.foco === s.nombre;
+      var c = svg('circle', {
+        class: 'seg-dona', cx: 100, cy: 100, r: R, fill: 'none', stroke: s.color,
+        'stroke-width': vista.foco === s.nombre ? 34 : 26, opacity: activo ? 1 : 0.3,
+        'stroke-dasharray': Math.max(largo - GAP, 0.5) + ' ' + C, 'stroke-dashoffset': -inicio,
+        transform: 'rotate(-90 100 100)'
+      });
+      var titulo = svg('title', {});
+      titulo.textContent = s.nombre + ': ' + clp.format(s.monto);
+      c.appendChild(titulo);
+      c.addEventListener('click', function () { vista.foco = vista.foco === s.nombre ? '' : s.nombre; pintarResumen(); });
+      el.appendChild(c);
+      inicio += largo;
+    });
+    var foco = segs.filter(function (s) { return s.nombre === vista.foco; })[0];
+    var arriba = foco ? foco.nombre : 'Total';
+    var monto = foco ? foco.monto : total;
+    var abajo = foco ? Math.round(foco.monto / total * 100) + '% del total' : (vista.modo === 'mes' ? 'del mes' : 'del año');
+    var t1 = svg('text', { x: 100, y: 84, 'font-size': 13, opacity: 0.7 }); t1.textContent = arriba.length > 18 ? arriba.slice(0, 17) + '…' : arriba;
+    var t2 = svg('text', { x: 100, y: 108, 'font-size': 22, 'font-weight': 800 }); t2.textContent = clp.format(monto);
+    var t3 = svg('text', { x: 100, y: 128, 'font-size': 12, opacity: 0.7 }); t3.textContent = abajo;
+    el.append(t1, t2, t3);
+    el.setAttribute('aria-label', arriba + ' ' + clp.format(monto));
+  }
+
+  // ---------- Meses: barras de los últimos 12 meses ----------
+  var mesSel = '';
+
+  function pintarMeses() {
+    if (!estado.filas) return;
+    var actual = hoy().slice(0, 7);
+    var base = fechaDe(actual + '-01');
+    var meses = [];
+    for (var i = 11; i >= 0; i--) meses.push(isoDe(new Date(base.getFullYear(), base.getMonth() - i, 1)).slice(0, 7));
+    if (meses.indexOf(mesSel) === -1) mesSel = actual;
+    var porMes = sumar(function () { return true; }, 'mes');
+    var max = Math.max.apply(null, meses.map(function (m) { return porMes[m] || 0; }).concat([1]));
+
+    var barras = $('barras'), eje = $('barras-eje');
+    barras.innerHTML = ''; eje.innerHTML = '';
+    meses.forEach(function (m) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = m === mesSel ? 'sel' : '';
+      b.setAttribute('aria-label', nombrePeriodo(m) + ': ' + clp.format(porMes[m] || 0));
+      var barra = document.createElement('i');
+      barra.style.height = ((porMes[m] || 0) / max * 100) + '%';
+      b.appendChild(barra);
+      b.addEventListener('click', function () { mesSel = m; pintarMeses(); });
+      barras.appendChild(b);
+      var et = document.createElement('span');
+      et.className = m === mesSel ? 'sel' : '';
+      et.textContent = MESES[Number(m.slice(5, 7)) - 1].slice(0, 3);
+      eje.appendChild(et);
+    });
+
+    var total = porMes[mesSel] || 0;
+    var d = fechaDe(mesSel + '-01');
+    var previo = isoDe(new Date(d.getFullYear(), d.getMonth() - 1, 1)).slice(0, 7);
+    $('mes-nombre').textContent = nombrePeriodo(mesSel) + (mesSel === actual ? ' (en curso)' : '');
+    $('mes-total').textContent = clp.format(total);
+    var ant = porMes[previo] || 0;
+    var nombrePrevio = MESES[Number(previo.slice(5, 7)) - 1];
+    if (ant) {
+      var dif = Math.round((total - ant) / ant * 100);
+      $('mes-comp').textContent = (dif > 0 ? '▲ ' + dif + '% más' : dif < 0 ? '▼ ' + (-dif) + '% menos' : 'Igual') + ' que ' + nombrePrevio + ' (' + clp.format(ant) + ')';
+    } else {
+      $('mes-comp').textContent = 'Sin gastos en ' + nombrePrevio;
+    }
+
+    // Datos curiosos
+    var conGasto = meses.filter(function (m) { return porMes[m]; });
+    var promedio = conGasto.length ? conGasto.reduce(function (a, m) { return a + porMes[m]; }, 0) / conGasto.length : 0;
+    var maxMes = conGasto.reduce(function (a, m) { return !a || porMes[m] > porMes[a] ? m : a; }, '');
+    var delMes = estado.filas.filter(function (f) { return f.mes === mesSel; });
+    var porCentro = sumar(function (f) { return f.mes === mesSel; }, 'centro');
+    var top = Object.keys(porCentro).sort(function (a, b) { return porCentro[b] - porCentro[a]; })[0];
+    var anio = mesSel.slice(0, 4);
+    var totalAnio = estado.filas.reduce(function (a, f) { return f.mes.slice(0, 4) === anio ? a + f.total : a; }, 0);
+    var diasMes = mesSel === actual ? new Date().getDate() : new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    var datos = [
+      ['Promedio mensual', clp.format(promedio), conGasto.length ? 'meses con gastos' : ''],
+      ['Mes más alto', maxMes ? clp.format(porMes[maxMes]) : '—', maxMes ? nombrePeriodo(maxMes) : ''],
+      ['Centro top del mes', top ? clp.format(porCentro[top]) : '—', top || 'sin gastos'],
+      ['Por día', clp.format(total / diasMes), 'en ' + MESES[d.getMonth()]],
+      ['Total ' + anio, clp.format(totalAnio), 'en el año'],
+      ['Proyección', mesSel === actual ? clp.format(total / diasMes * new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()) : '—', mesSel === actual ? 'si sigue este ritmo' : 'solo mes en curso']
+    ];
+    var cont = $('datos');
+    cont.innerHTML = '';
+    datos.forEach(function (x) {
+      var div = document.createElement('div'); div.className = 'dato';
+      ['t', 'v', 's'].forEach(function (cls, i) {
+        var e = document.createElement('div'); e.className = cls; e.textContent = x[i]; div.appendChild(e);
+      });
+      cont.appendChild(div);
+    });
+
+    // Quién anotó en el mes elegido
+    $('quien-titulo').textContent = 'Quién anotó en ' + MESES[d.getMonth()];
+    var porPersona = sumar(function (f) { return f.mes === mesSel; }, 'persona');
+    var ul = $('quien');
+    ul.innerHTML = '';
+    var personas = Object.keys(porPersona).sort(function (a, b) { return porPersona[b] - porPersona[a]; });
+    if (!delMes.length) ul.innerHTML = '<li class="vacio">Sin gastos este mes.</li>';
+    personas.forEach(function (p) {
+      var li = document.createElement('li');
+      li.style.cursor = 'default';
+      var l1 = document.createElement('div'); l1.className = 'l1';
+      var nom = document.createElement('span'); nom.className = 'nom'; nom.textContent = p;
+      var pct = document.createElement('span'); pct.className = 'pct'; pct.textContent = Math.round(porPersona[p] / total * 100) + '%';
+      var m = document.createElement('span'); m.textContent = clp.format(porPersona[p]);
+      l1.append(nom, pct, m);
+      var barra = document.createElement('div'); barra.className = 'barra'; barra.style.marginLeft = '0';
+      var i = document.createElement('i'); i.style.width = (porPersona[p] / total * 100) + '%'; i.style.background = 'var(--accent)';
+      barra.appendChild(i);
+      li.append(l1, barra);
       ul.appendChild(li);
     });
   }

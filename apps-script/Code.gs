@@ -19,7 +19,7 @@ var CENTROS_INICIALES = ['Farmacia', 'Luna', 'Supermercado', 'Fran'];
 var PERSONAS_INICIALES = ['Vicente', 'Fran'];
 var ULTIMOS_GASTOS = 20;
 // Se muestra al abrir la URL /exec: sirve para comprobar que Google tiene el código nuevo.
-var VERSION = '2026-10-28 · centros de costo desde la app';
+var VERSION = '2026-10-28 · gráficos y resúmenes sin fórmulas';
 
 // ---------------------------------------------------------------------------
 // Instalación: ejecutar una vez desde el editor (botón "Ejecutar" con setup).
@@ -77,42 +77,84 @@ function setup() {
   }
 }
 
+// Los resúmenes se escriben como valores calculados por el script (sin fórmulas
+// QUERY, que fallaban según la configuración regional de la planilla). Se
+// recalculan cada vez que se guarda o borra un gasto desde la app. Si editas la
+// hoja Gastos a mano, ejecuta actualizarResumenes desde el editor.
 function crearResumenes_(ss) {
-  var rango = HOJA_GASTOS + '!B:F';
-  // Las letras dentro de QUERY son relativas al rango B:F: B=Fecha, C=Centro, D=Monto.
-  var mensual = obtenerOCrearHoja_(ss, HOJA_RESUMEN_MENSUAL);
-  mensual.clear();
-  mensual.getRange('A1').setValue('Total por mes').setFontWeight('bold');
-  mensual.getRange('A2').setFormula(
-    '=IFERROR(QUERY(' + rango + ', "select year(B), month(B)+1, sum(D) where B is not null ' +
-    'group by year(B), month(B)+1 order by year(B) desc, month(B)+1 desc ' +
-    'label year(B) \'Año\', month(B)+1 \'Mes\', sum(D) \'Total\'", 1), "Sin gastos todavía")'
-  );
-  mensual.getRange('E1').setValue('Por centro de costo').setFontWeight('bold');
-  mensual.getRange('E2').setFormula(
-    '=IFERROR(QUERY(' + rango + ', "select year(B), month(B)+1, sum(D) where B is not null ' +
-    'group by year(B), month(B)+1 pivot C order by year(B) desc, month(B)+1 desc ' +
-    'label year(B) \'Año\', month(B)+1 \'Mes\'", 1), "")'
-  );
-  mensual.getRange('C:C').setNumberFormat('$#,##0');
-  mensual.getRange('G:Z').setNumberFormat('$#,##0');
-  mensual.setFrozenRows(2);
+  actualizarResumenes_(ss);
+}
 
-  var anual = obtenerOCrearHoja_(ss, HOJA_RESUMEN_ANUAL);
-  anual.clear();
-  anual.getRange('A1').setValue('Total por año').setFontWeight('bold');
-  anual.getRange('A2').setFormula(
-    '=IFERROR(QUERY(' + rango + ', "select year(B), sum(D) where B is not null ' +
-    'group by year(B) order by year(B) desc label year(B) \'Año\', sum(D) \'Total\'", 1), "Sin gastos todavía")'
-  );
-  anual.getRange('D1').setValue('Por centro de costo').setFontWeight('bold');
-  anual.getRange('D2').setFormula(
-    '=IFERROR(QUERY(' + rango + ', "select year(B), sum(D) where B is not null ' +
-    'group by year(B) pivot C order by year(B) desc label year(B) \'Año\'", 1), "")'
-  );
-  anual.getRange('B:B').setNumberFormat('$#,##0');
-  anual.getRange('E:Z').setNumberFormat('$#,##0');
-  anual.setFrozenRows(2);
+function actualizarResumenes() {
+  actualizarResumenes_(libro_());
+}
+
+function actualizarResumenes_(ss) {
+  var filas = totalesPorMes_(ss);
+  var centros = leerLista_(HOJA_CENTROS, ss);
+  filas.forEach(function (f) { if (centros.indexOf(f.centro) === -1) centros.push(f.centro); });
+  centros.sort(function (a, b) { return a.localeCompare(b, 'es', { sensitivity: 'base' }); });
+
+  var porMes = {};
+  var porAnio = {};
+  filas.forEach(function (f) {
+    var anio = f.mes.slice(0, 4);
+    porMes[f.mes] = porMes[f.mes] || {};
+    porMes[f.mes][f.centro] = (porMes[f.mes][f.centro] || 0) + f.total;
+    porAnio[anio] = porAnio[anio] || {};
+    porAnio[anio][f.centro] = (porAnio[anio][f.centro] || 0) + f.total;
+  });
+
+  var mensual = [['Año', 'Mes', 'Total'].concat(centros)];
+  Object.keys(porMes).sort().reverse().forEach(function (mes) {
+    mensual.push([Number(mes.slice(0, 4)), Number(mes.slice(5, 7))].concat(filaTotales_(porMes[mes], centros)));
+  });
+  escribirResumen_(obtenerOCrearHoja_(ss, HOJA_RESUMEN_MENSUAL), 'Total por mes y centro de costo', mensual, 3);
+
+  var anual = [['Año', 'Total'].concat(centros)];
+  Object.keys(porAnio).sort().reverse().forEach(function (anio) {
+    anual.push([Number(anio)].concat(filaTotales_(porAnio[anio], centros)));
+  });
+  escribirResumen_(obtenerOCrearHoja_(ss, HOJA_RESUMEN_ANUAL), 'Total por año y centro de costo', anual, 2);
+}
+
+function filaTotales_(montos, centros) {
+  var valores = centros.map(function (c) { return montos[c] || 0; });
+  var total = valores.reduce(function (a, b) { return a + b; }, 0);
+  return [total].concat(valores);
+}
+
+function escribirResumen_(hoja, titulo, tabla, primeraColMonto) {
+  hoja.clear();
+  hoja.getRange('A1').setValue(titulo).setFontWeight('bold');
+  hoja.getRange(2, 1, tabla.length, tabla[0].length).setValues(tabla);
+  hoja.getRange(2, 1, 1, tabla[0].length).setFontWeight('bold');
+  if (tabla.length > 1) {
+    hoja.getRange(3, primeraColMonto, tabla.length - 1, tabla[0].length - primeraColMonto + 1).setNumberFormat('$#,##0');
+  } else {
+    hoja.getRange('A3').setValue('Sin gastos todavía');
+  }
+  hoja.setFrozenRows(2);
+}
+
+// Suma de montos agrupada por mes (yyyy-MM), centro y persona.
+function totalesPorMes_(ss) {
+  ss = ss || libro_();
+  var hoja = ss.getSheetByName(HOJA_GASTOS);
+  if (!hoja || hoja.getLastRow() < 2) return [];
+  var tz = ss.getSpreadsheetTimeZone();
+  var grupos = {};
+  hoja.getRange(2, 2, hoja.getLastRow() - 1, 5).getValues().forEach(function (f) {
+    var monto = Number(f[2]) || 0;
+    if (!(f[0] instanceof Date) || !monto) return;
+    var mes = Utilities.formatDate(f[0], tz, 'yyyy-MM');
+    var centro = String(f[1]).trim();
+    var persona = String(f[4]).trim();
+    var clave = mes + '|' + centro + '|' + persona;
+    grupos[clave] = grupos[clave] || { mes: mes, centro: centro, persona: persona, total: 0 };
+    grupos[clave].total += monto;
+  });
+  return Object.keys(grupos).map(function (k) { return grupos[k]; });
 }
 
 function libro_() {
@@ -147,12 +189,16 @@ function doPost(e) {
         return json_({ ok: true, gastos: ultimosGastos_(), totalMes: totalMesActual_() });
       case 'add':
         agregarGasto_(body);
+        actualizarResumenes_(libro_());
         return json_({ ok: true, gastos: ultimosGastos_(), totalMes: totalMesActual_() });
       case 'addCentro':
         return json_({ ok: true, centros: agregarCentro_(body.nombre), personas: leerLista_(HOJA_PERSONAS) });
       case 'delete':
         borrarGasto_(body.id);
+        actualizarResumenes_(libro_());
         return json_({ ok: true, gastos: ultimosGastos_(), totalMes: totalMesActual_() });
+      case 'resumen':
+        return json_({ ok: true, filas: totalesPorMes_() });
       default:
         throw new Error('Acción desconocida');
     }
@@ -167,8 +213,8 @@ function validarPin_(pin) {
   if (String(pin || '') !== String(esperado)) throw new Error('PIN incorrecto');
 }
 
-function leerLista_(nombreHoja) {
-  var hoja = libro_().getSheetByName(nombreHoja);
+function leerLista_(nombreHoja, ss) {
+  var hoja = (ss || libro_()).getSheetByName(nombreHoja);
   if (!hoja || hoja.getLastRow() < 2) return [];
   return hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues()
     .map(function (fila) { return String(fila[0]).trim(); })
