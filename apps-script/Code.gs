@@ -19,7 +19,7 @@ var CENTROS_INICIALES = ['Farmacia', 'Luna', 'Supermercado', 'Fran'];
 var PERSONAS_INICIALES = ['Vicente', 'Fran'];
 var ULTIMOS_GASTOS = 20;
 // Se muestra al abrir la URL /exec: sirve para comprobar que Google tiene el código nuevo.
-var VERSION = '2026-10-28 · gráficos y resúmenes sin fórmulas';
+var VERSION = '2026-10-28 · detalle de gastos por centro';
 
 // ---------------------------------------------------------------------------
 // Instalación: ejecutar una vez desde el editor (botón "Ejecutar" con setup).
@@ -199,6 +199,8 @@ function doPost(e) {
         return json_({ ok: true, gastos: ultimosGastos_(), totalMes: totalMesActual_() });
       case 'resumen':
         return json_({ ok: true, filas: totalesPorMes_() });
+      case 'detalle':
+        return json_({ ok: true, gastos: gastosDeCentro_(body.centro, body.periodo) });
       default:
         throw new Error('Acción desconocida');
     }
@@ -309,6 +311,30 @@ function totalMesActual_() {
     }
     return suma;
   }, 0);
+}
+
+// Gastos de un centro en un mes ('yyyy-MM') o año ('yyyy').
+function gastosDeCentro_(centro, periodo) {
+  centro = String(centro || '').trim();
+  periodo = String(periodo || '');
+  if (!/^\d{4}(-\d{2})?$/.test(periodo)) throw new Error('Periodo inválido');
+  var hoja = hojaGastos_();
+  if (hoja.getLastRow() < 2) return [];
+  var tz = libro_().getSpreadsheetTimeZone();
+  return hoja.getRange(2, 1, hoja.getLastRow() - 1, COLUMNAS_GASTOS.length).getValues()
+    .filter(function (f) {
+      return f[1] instanceof Date && String(f[2]).trim() === centro &&
+        Utilities.formatDate(f[1], tz, 'yyyy-MM').slice(0, periodo.length) === periodo;
+    })
+    .map(function (f) {
+      return {
+        id: f[0],
+        fecha: Utilities.formatDate(f[1], tz, 'yyyy-MM-dd'),
+        monto: Number(f[3]) || 0,
+        descripcion: f[4],
+        persona: f[5]
+      };
+    });
 }
 
 function hojaGastos_() {
