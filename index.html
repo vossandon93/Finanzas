@@ -345,7 +345,10 @@
       mensaje($('gasto-msg'), '✓ Centro de costo agregado: ' + (creado || nombre), 'ok');
     }).catch(function (err) {
       volver();
-      mensaje($('gasto-msg'), 'No se pudo agregar: ' + err.message, 'err');
+      var texto = /Acción desconocida/.test(err.message)
+        ? 'El script de Google está desactualizado: pega el Code.gs nuevo y publica una "Nueva versión".'
+        : err.message;
+      mensaje($('gasto-msg'), 'No se pudo agregar: ' + texto, 'err');
     }).then(function () { sel.disabled = false; });
   });
 

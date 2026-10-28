@@ -18,6 +18,8 @@ var COLUMNAS_GASTOS = ['ID', 'Fecha', 'Centro de costo', 'Monto', 'Descripción'
 var CENTROS_INICIALES = ['Farmacia', 'Luna', 'Supermercado', 'Fran'];
 var PERSONAS_INICIALES = ['Vicente', 'Fran'];
 var ULTIMOS_GASTOS = 20;
+// Se muestra al abrir la URL /exec: sirve para comprobar que Google tiene el código nuevo.
+var VERSION = '2026-10-28 · centros de costo desde la app';
 
 // ---------------------------------------------------------------------------
 // Instalación: ejecutar una vez desde el editor (botón "Ejecutar" con setup).
@@ -130,7 +132,7 @@ function obtenerOCrearHoja_(ss, nombre) {
 // ---------------------------------------------------------------------------
 
 function doGet() {
-  return json_({ ok: true, mensaje: 'Gastos Familia: backend funcionando.' });
+  return json_({ ok: true, mensaje: 'Gastos Familia: backend funcionando.', version: VERSION });
 }
 
 function doPost(e) {
