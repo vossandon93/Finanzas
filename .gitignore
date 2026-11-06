@@ -1,0 +1,9 @@
+# Las cartolas y los CSV convertidos NUNCA van a GitHub (son datos bancarios).
+cartolas/
+importar/salida/
+*.xlsx
+*.xls
+*.pdf
+*.csv
+__pycache__/
+.DS_Store
